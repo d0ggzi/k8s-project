@@ -1,0 +1,22 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  selector:
+    matchLabels:
+      app: todo
+      tier: frontend
+      track: stable
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: todo
+        tier: frontend
+        track: stable
+    spec:
+      containers:
+        - name: frontend
+          image: "dggz1/todo-frontend-nginx:latest"

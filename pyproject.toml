@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "python-ab2-hw-01-k8s-d0ggzi"
+version = "0.1.0"
+description = "project using k8s"
+authors = ["Maksim Laptev <maks-laptev.03@mail.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pytest = "^8.0.1"
+psycopg2-binary = "^2.9.9"
+pyjwt = "^2.8.0"
+pydantic-settings = "^2.2.1"
+bcrypt = "^4.1.2"
+uvicorn = "^0.27.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

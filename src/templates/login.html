@@ -1,0 +1,92 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flask Auth Example</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css"/>
+</head>
+
+
+<body>
+<div class="column is-4 is-offset-4">
+    <h3 class="title">Login</h3>
+    <div class="box">
+        <form method="POST" id="loginForm">
+            <div class="field">
+                <div class="control">
+                    <input class="input is-large" type="Login" id="login" placeholder="Your Login" autofocus="">
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="control">
+                    <input class="input is-large" type="password" id="password" placeholder="Your Password">
+                </div>
+            </div>
+
+            <button class="button is-block is-info is-large is-fullwidth">Login</button>
+        </form>
+    </div>
+    <a href="/signup.html">Don't have an account? Sign Up!</a>
+</div>
+
+
+<script>
+    // const url = `http://todo:8000/task_list`;
+    const url = '/api/auth/login';
+    let loginForm = document.getElementById("loginForm");
+
+    loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        let username = document.getElementById("login");
+        let password = document.getElementById("password");
+
+        if (username.value === "" || password.value === "") {
+            alert("Ensure you input a value in both fields!");
+        } else {
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json; charset=UTF-8"
+                },
+                body: JSON.stringify({
+                    "username": username.value,
+                    "password": password.value
+                })
+            }).then(response => response.json())
+                .then(data => {
+                    setCookie("jwt", data['jwt'], 1);
+                })
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1000);
+        }
+
+    });
+
+    function setCookie(name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+</script>
+</body>

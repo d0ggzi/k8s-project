@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/semantic-ui@2.4.2/dist/semantic.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        .formPopup {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 25%;
+            transform: translate(-50%, 5%);
+            border: 3px solid #999999;
+            z-index: 9;
+        }
+
+        .formContainer {
+            max-width: 300px;
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        .formContainer input {
+            width: 100%;
+            padding: 15px;
+            margin: 5px 0 20px 0;
+            border: none;
+            background: #eee;
+        }
+
+        .formContainer input:focus {
+            background-color: #ddd;
+            outline: none;
+        }
+
+        .formContainer .btn {
+            padding: 12px 20px;
+            border: none;
+            background-color: #21ba45;
+            color: #fff;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .formContainer .cancel {
+            background-color: #db2828;
+        }
+
+        .formContainer .btn:hover,
+        .openButton:hover {
+            opacity: 1;
+        }
+
+        li {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+<div style="margin-top: 50px;" class="ui container">
+    <h1 class="ui center aligned header">To Do App</h1>
+
+    <form class="ui form" id="addTaskList">
+        <div class="field">
+            <label>TodoList Title</label>
+            <input type="text" id="addTaskListTitle" placeholder="Enter TodoList name"><br>
+        </div>
+        <button class="ui blue button" type="submit">Add</button>
+    </form>
+
+    <hr>
+
+    <div id="parent">
+    </div>
+
+    <div class="taskPopup">
+        <div class="formPopup" id="popupForm">
+            <form class="formContainer" id="taskCreateForm">
+                <h2 id="taskListTitle"></h2>
+                <input type="text" id="task_name" placeholder="task name" name="email" required>
+                <input type="text" id="task_desc" placeholder="description" name="psw" required>
+                <button type="submit" class="btn">Submit</button>
+                <button type="button" class="btn cancel" onclick="closeForm()">Close</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const url_task_list = '/api/task_list';
+    const url_task = '/api/task';
+
+    function escapeOutput(toOutput) {
+        return toOutput.replace(/\&/g, '.amp;')
+            .replace(/\</g, '.lt;')
+            .replace(/\>/g, '.gt;')
+            .replace(/\"/g, '.quot;')
+            .replace(/\'/g, '.#x27;')
+            .replace(/\//g, '.#x2F;');
+    }
+
+    window.addEventListener('load', async function () {
+        await onLoad();
+    })
+
+    async function onLoad() {
+        if (getCookie('jwt') == null) {
+            window.location.href = '/login.html';
+        }
+
+        let resp = await fetch(url_task_list, {
+            method: "GET",
+            headers: {
+                "Authorization": getCookie('jwt')
+            },
+        })
+        let data = await resp.json();
+        window.csrf_token = data[1];
+        data = data[0];
+        var parent = document.getElementById('parent');
+        for (var key in data) {
+            var value = data[key];
+
+            var child = document.createElement('div');
+            child.className = "ui segment";
+
+            var child_p = document.createElement("div");
+            child_p.id = value;
+            child_p.className = "ui large input";
+            var child_input = document.createElement("input");
+            child_input.value = value;
+            child_p.appendChild(child_input);
+
+            child.appendChild(child_p)
+
+            var child_tasks = document.createElement("ul");
+
+            var resp_tasks = await fetch("/api/task?task_list_name=" + value, {
+                method: "GET",
+                headers: {
+                    "Authorization": getCookie('jwt')
+                },
+            })
+            var tasks = await resp_tasks.json();
+            for (var el in tasks) {
+                var child_task = document.createElement("li");
+                child_task.innerHTML = '<h3> Title: ' + tasks[el]["name"] + '</h3> \n Description: ' + tasks[el]["description"];
+                child_tasks.appendChild(child_task);
+
+                var child_task_update = document.createElement("span");
+                child_task_update.className = "tiny ui blue button";
+                child_task_update.innerText = "update";
+                child_task_update.setAttribute("onclick", "openUpdateForm(this)")
+                child_tasks.appendChild(child_task_update);
+
+                var child_task_delete = document.createElement("span");
+                child_task_delete.className = "tiny ui red button";
+                child_task_delete.innerText = "delete"
+                child_task_delete.setAttribute("onclick", "delete_task(this)")
+                child_tasks.appendChild(child_task_delete);
+            }
+            child.appendChild(child_tasks);
+
+
+            var child_create = document.createElement("span");
+            child_create.className = "ui green button";
+            child_create.innerText = "Create";
+            child_create.setAttribute("onclick", "openCreateForm(this)")
+            child.appendChild(child_create);
+
+            var child_update = document.createElement("span");
+            child_update.className = "ui blue button";
+            child_update.innerText = "Update";
+            child_update.setAttribute("onclick", "update_task_list(this)")
+            child.appendChild(child_update);
+
+            var child_delete = document.createElement("span");
+            child_delete.className = "ui red button";
+            child_delete.innerText = "Delete";
+            child_delete.setAttribute("onclick", "delete_task_list(this)")
+            child.appendChild(child_delete);
+
+            parent.appendChild(child);
+        }
+    }
+
+
+    let addTaskListForm = document.getElementById("addTaskList");
+
+    addTaskListForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        let addTaskListTitle = document.getElementById("addTaskListTitle");
+        let value_came = escapeOutput(addTaskListTitle.value);
+        if (value_came === "") {
+            alert("Invalid TaskList title");
+        } else {
+            fetch(url_task_list, {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json; charset=UTF-8",
+                    "Authorization": getCookie('jwt'),
+                    "X-CSRF-TOKEN": window.csrf_token
+                },
+                body: JSON.stringify({
+                    "task_list_name": value_came
+                })
+            }).then(response => response.text())
+                .then(data => {
+                    alert(data);
+
+                })
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+    })
+
+    function delete_task_list(e) {
+        var task_list_name = e.parentNode.getElementsByClassName("input").item(0).id;
+        fetch(url_task_list, {
+            method: "DELETE",
+            headers: {
+                "Authorization": getCookie('jwt')
+            },
+            body: JSON.stringify({
+                "task_list_name": task_list_name
+            })
+        }).then(response => response.text())
+            .then(data => {
+                alert(data);
+            })
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+
+    function delete_task(e) {
+        var task_list_name = e.parentNode.parentNode.getElementsByClassName("input").item(0).id;
+        var task_name = e.previousSibling.previousSibling.getElementsByTagName("h3").item(0).innerHTML.substring(8);
+        console.log(task_name);
+        fetch(url_task, {
+            method: "DELETE",
+            headers: {
+                "Authorization": getCookie('jwt')
+            },
+            body: JSON.stringify({
+                "task_list_name": task_list_name,
+                "task_name": task_name
+            })
+        }).then(response => response.text())
+            .then(data => {
+                alert(data);
+            })
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+
+    function update_task_list(e) {
+        var task_list_old_name = e.parentNode.getElementsByClassName("input").item(0).id
+        var task_list_new_name = e.parentNode.getElementsByTagName("input").item(0).value;
+        task_list_new_name = escapeOutput(task_list_new_name);
+        fetch(url_task_list, {
+            method: "PUT",
+            headers: {
+                "Content-type": "application/json; charset=UTF-8",
+                "Authorization": getCookie('jwt')
+            },
+            body: JSON.stringify({
+                "task_list_old_name": task_list_old_name,
+                "task_list_new_name": task_list_new_name
+            })
+        }).then(response => response.text())
+            .then(data => {
+                alert(data);
+            })
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+
+    function openCreateForm(e) {
+        var task_list_name = e.parentNode.getElementsByClassName("input").item(0).id;
+        window.task_create_or_update = "POST";
+        document.getElementById("taskListTitle").innerHTML = task_list_name;
+        document.getElementById("popupForm").style.display = "block";
+    }
+
+    function openUpdateForm(e) {
+        var task_list_name = e.parentNode.parentNode.getElementsByClassName("input").item(0).id;
+        window.task_create_or_update = "PUT";
+        window.old_task_name = e.previousSibling.getElementsByTagName("h3").item(0).innerHTML.substring(8);
+        document.getElementById("taskListTitle").innerHTML = task_list_name;
+        document.getElementById("popupForm").style.display = "block";
+    }
+
+    function closeForm() {
+        document.getElementById("popupForm").style.display = "none";
+    }
+
+    let taskCreateForm = document.getElementById("taskCreateForm");
+    taskCreateForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        let task_list_name = document.getElementById("taskListTitle");
+        let task_name = document.getElementById("task_name").value;
+        task_name = escapeOutput(task_name);
+        let task_desc = document.getElementById("task_desc").value;
+        task_desc = escapeOutput(task_desc);
+
+        if (task_name === "") {
+            alert("Invalid task name");
+        } else {
+            if (window.task_create_or_update === "POST") {
+                fetch(url_task, {
+                    method: "POST",
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8",
+                        "Authorization": getCookie('jwt'),
+                        "X-CSRF-TOKEN": window.csrf_token
+                    },
+                    body: JSON.stringify({
+                        "task_name": task_name,
+                        "description": task_desc,
+                        "task_list_name": task_list_name.innerText,
+                    })
+                }).then(response => response.text())
+                    .then(data => {
+                        alert(data);
+
+                    })
+            } else {
+                fetch(url_task, {
+                    method: "PUT",
+                    headers: {
+                        "Content-type": "application/json; charset=UTF-8",
+                        "Authorization": getCookie('jwt')
+                    },
+                    body: JSON.stringify({
+                        "task_old_name": window.old_task_name,
+                        "task_new_name": task_name,
+                        "new_desc": task_desc,
+                        "task_list_name": task_list_name.innerText,
+                    })
+                }).then(response => response.text())
+                    .then(data => {
+                        alert(data);
+
+                    })
+            }
+
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+    })
+
+
+    function getCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+</script>
+</body>
+
+</html>

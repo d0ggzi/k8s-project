@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  selector:
+    matchLabels:
+      app: todo
+      tier: backend
+      track: stable
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: todo
+        tier: backend
+        track: stable
+    spec:
+      containers:
+        - name: todo
+          image: "dggz1/todo-backend:latest"
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: JWT_SECRET
+              value: "secretkey1234"
+            - name: POSTGRES_DB
+              value: "todo"
+            - name: POSTGRES_USER
+              value: "user"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+            - name: POSTGRES_OUT_HOST
+              value: "postgres"
+            - name: POSTGRES_OUT_PORT
+              value: "5432"
